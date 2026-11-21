@@ -1,0 +1,79 @@
+[
+  {
+    "code": "SAVINGS",
+    "name": "Savings account",
+    "family": "SAVINGS",
+    "eligibility": {
+      "customerTypes": ["PERSONAL"],
+      "requiresCreditCard": false
+    },
+    "terms": {
+      "openingMinimum": { "PEN": 0.00, "USD": 0.00 },
+      "freeMonthlyMovements": 5,
+      "movementFee": { "PEN": 2.50, "USD": 0.75 },
+      "monthlyMovementLimit": 10
+    }
+  },
+  {
+    "code": "VIP_SAVINGS",
+    "name": "VIP savings account",
+    "family": "SAVINGS",
+    "eligibility": {
+      "customerTypes": ["PERSONAL"],
+      "requiredProfile": "VIP",
+      "requiresCreditCard": true
+    },
+    "terms": {
+      "openingMinimum": { "PEN": 1000.00, "USD": 300.00 },
+      "freeMonthlyMovements": 10,
+      "movementFee": { "PEN": 1.50, "USD": 0.50 },
+      "monthlyMovementLimit": 20,
+      "minimumDailyAverageBalance": { "PEN": 1000.00, "USD": 300.00 }
+    }
+  },
+  {
+    "code": "CHECKING",
+    "name": "Checking account",
+    "family": "CHECKING",
+    "eligibility": {
+      "customerTypes": ["PERSONAL", "BUSINESS"],
+      "requiresCreditCard": false
+    },
+    "terms": {
+      "openingMinimum": { "PEN": 0.00, "USD": 0.00 },
+      "freeMonthlyMovements": 20,
+      "movementFee": { "PEN": 1.00, "USD": 0.30 },
+      "monthlyMaintenanceFee": { "PEN": 12.00, "USD": 4.00 }
+    }
+  },
+  {
+    "code": "SME_CHECKING",
+    "name": "SME checking account",
+    "family": "CHECKING",
+    "eligibility": {
+      "customerTypes": ["BUSINESS"],
+      "requiredProfile": "SME",
+      "requiresCreditCard": true
+    },
+    "terms": {
+      "openingMinimum": { "PEN": 0.00, "USD": 0.00 },
+      "freeMonthlyMovements": 50,
+      "movementFee": { "PEN": 0.80, "USD": 0.25 }
+    }
+  },
+  {
+    "code": "FIXED_TERM",
+    "name": "Fixed-term deposit",
+    "family": "FIXED_TERM",
+    "eligibility": {
+      "customerTypes": ["PERSONAL"],
+      "requiresCreditCard": false
+    },
+    "terms": {
+      "openingMinimum": { "PEN": 1000.00, "USD": 300.00 },
+      "freeMonthlyMovements": 1,
+      "movementFee": { "PEN": 0.00, "USD": 0.00 },
+      "operationDayOfMonth": 15
+    }
+  }
+]

@@ -1,0 +1,557 @@
+openapi: 3.0.3
+info:
+  title: Product API
+  version: 1.0.0
+  description: |
+    Catalog of the bank account products: who can open each one and its terms
+    (minimums, fees, quotas and limits). Other services read the terms here instead of
+    keeping their own copy.
+
+    A product belongs to one family, which decides the shape of its terms:
+    SAVINGS has a hard monthly movement limit and no maintenance fee; CHECKING has no
+    limit and may charge a maintenance fee; FIXED_TERM allows one movement per month on
+    its operation day. Code and family are immutable in this API version.
+
+    Amounts are quoted for every currency the bank operates (PEN and USD), with at most
+    two decimals. Instants are UTC.
+servers:
+  - url: /
+tags:
+  - name: Products
+    description: Account products, their eligibility and their terms.
+paths:
+  /api/v1/products:
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Add a product to the catalog
+      description: |
+        Creates an ACTIVE product with server-generated timestamps. The code is chosen by
+        the caller and identifies the product from then on, including after it is retired:
+        a repeated POST with an existing code returns 409.
+        Surrounding whitespace is removed from the name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+            example:
+              code: SAVINGS
+              name: Savings account
+              family: SAVINGS
+              eligibility:
+                customerTypes: [PERSONAL]
+                requiresCreditCard: false
+              terms:
+                openingMinimum: { PEN: 0.00, USD: 0.00 }
+                freeMonthlyMovements: 5
+                movementFee: { PEN: 2.50, USD: 0.75 }
+                monthlyMovementLimit: 10
+      responses:
+        '201':
+          description: Product created.
+          headers:
+            Location:
+              description: URI of the created product.
+              schema:
+                type: string
+              example: /api/v1/products/SAVINGS
+            ETag:
+              $ref: '#/components/headers/ProductETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: List products using bounded pagination
+      description: |
+        Includes ACTIVE and RETIRED products unless filtered by status.
+        Orders by product code ascending for deterministic ordering.
+        Pages are not snapshots: concurrent modifications can change page contents
+        and the total count between requests. Out-of-range pages return empty items.
+        The list is always read from the database, never from the cache.
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page number.
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 10000
+            default: 0
+        - name: size
+          in: query
+          description: Maximum number of products per page.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: family
+          in: query
+          schema:
+            $ref: '#/components/schemas/ProductFamily'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ProductStatus'
+      responses:
+        '200':
+          description: Product page. Concurrent changes may cause differences between items and the total count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/products/{productCode}:
+    parameters:
+      - $ref: '#/components/parameters/ProductCode'
+    get:
+      tags: [Products]
+      operationId: getProduct
+      summary: Find a product by code
+      description: |
+        Returns ACTIVE or RETIRED products. Answered from the Redis cache when the product
+        is there; otherwise read from the database and cached for a configured time.
+        An update or a retirement removes the product from the cache, so the next read
+        returns the new revision.
+      responses:
+        '200':
+          description: Product found.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ProductETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Replace the editable product information
+      description: |
+        Replaces name, eligibility and terms. All three are required.
+        Code, family, status and createdAt cannot be set here.
+        Rejects updates to RETIRED products with 409.
+        The caller must supply the strong ETag obtained from a previous response.
+        The update succeeds only if the supplied ETag matches the current revision.
+        A stale revision returns 412.
+        With a matching ETag and unchanged editable values, the current
+        representation and ETag are returned.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+            example:
+              name: Savings account
+              eligibility:
+                customerTypes: [PERSONAL]
+                requiresCreditCard: false
+              terms:
+                openingMinimum: { PEN: 0.00, USD: 0.00 }
+                freeMonthlyMovements: 6
+                movementFee: { PEN: 2.50, USD: 0.75 }
+                monthlyMovementLimit: 10
+      responses:
+        '200':
+          description: Product updated, or already has the requested values.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ProductETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Products]
+      operationId: retireProduct
+      summary: Retire a product without erasing the record
+      description: |
+        Changes ACTIVE to RETIRED and preserves the product, because accounts opened with
+        it keep referring to its code and terms. The code cannot be used for another product.
+        Retirement requires If-Match to match the current product revision.
+        A RETIRED product with a matching revision returns 204 without changes.
+        A stale revision returns 412, including a repeated request with the old ETag.
+        A missing product returns 404. GET remains available after retirement.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Product retired. No response body.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    ProductCode:
+      name: productCode
+      in: path
+      required: true
+      description: Product code chosen when the product was created.
+      schema:
+        type: string
+        pattern: '^[A-Z][A-Z0-9_]{1,39}$'
+      example: SAVINGS
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: |
+        Exactly one quoted numeric strong ETag, for example "3".
+        Wildcards, weak ETags and lists are not accepted by this API.
+        Missing header yields 428; malformed header yields 400;
+        a nonmatching revision yields 412.
+      schema:
+        type: string
+        pattern: '^"[0-9]+"$'
+        maxLength: 21
+      example: '"3"'
+  headers:
+    ProductETag:
+      description: |
+        Strong entity tag identifying the product revision as a quoted number.
+        The tag changes whenever the returned product representation changes.
+        Send it in If-Match when updating or retiring the product.
+      schema:
+        type: string
+        pattern: '^"[0-9]+"$'
+      example: '"3"'
+  responses:
+    BadRequest:
+      description: Malformed JSON, invalid code, invalid field or parameter, or malformed If-Match.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Product does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Product code already exists (POST), or product is retired (PUT).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PreconditionFailed:
+      description: If-Match does not match the current revision. Read the product again.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnsupportedMediaType:
+      description: Request body must use application/json.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BusinessRuleViolation:
+      description: |
+        Well-formed fields violate business rules, such as terms that contradict the
+        product family or a required profile the accepted customer types do not support.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PreconditionRequired:
+      description: If-Match header is required.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: An unexpected error prevented completion of the request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    CreateProductRequest:
+      title: CreateProductRequest
+      type: object
+      additionalProperties: false
+      required: [code, name, family, eligibility, terms]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{1,39}$'
+          description: Unique product code, uppercase letters, digits and underscores. Immutable.
+          example: SAVINGS
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          pattern: '^.*\S.*$'
+          description: Commercial name. Surrounding whitespace is removed.
+          example: Savings account
+        family:
+          $ref: '#/components/schemas/ProductFamily'
+        eligibility:
+          $ref: '#/components/schemas/ProductEligibility'
+        terms:
+          $ref: '#/components/schemas/ProductTermsBody'
+    UpdateProductRequest:
+      title: UpdateProductRequest
+      type: object
+      additionalProperties: false
+      description: Complete replacement of editable fields. Code and family are immutable.
+      required: [name, eligibility, terms]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          pattern: '^.*\S.*$'
+          description: Commercial name. Surrounding whitespace is removed.
+          example: Savings account
+        eligibility:
+          $ref: '#/components/schemas/ProductEligibility'
+        terms:
+          $ref: '#/components/schemas/ProductTermsBody'
+    ProductEligibility:
+      title: ProductEligibility
+      type: object
+      additionalProperties: false
+      description: Who can open the product.
+      required: [customerTypes, requiresCreditCard]
+      properties:
+        customerTypes:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          maxItems: 2
+          description: Customer types that can open the product.
+          items:
+            $ref: '#/components/schemas/CustomerType'
+        requiredProfile:
+          $ref: '#/components/schemas/CustomerProfile'
+        requiresCreditCard:
+          type: boolean
+          description: Whether the customer must hold an active credit card when the account is opened.
+          example: false
+    ProductTermsBody:
+      title: ProductTermsBody
+      type: object
+      additionalProperties: false
+      description: |
+        Terms of the product. Which optional fields apply depends on the family:
+        monthlyMovementLimit is required for SAVINGS and rejected otherwise;
+        monthlyMaintenanceFee is optional for CHECKING and rejected otherwise;
+        minimumDailyAverageBalance is optional for SAVINGS and rejected otherwise;
+        operationDayOfMonth is required for FIXED_TERM and rejected otherwise.
+        A field that does not apply is omitted, also in responses.
+      required: [openingMinimum, freeMonthlyMovements, movementFee]
+      properties:
+        openingMinimum:
+          $ref: '#/components/schemas/AmountByCurrency'
+        freeMonthlyMovements:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100000
+          description: Movements per month without fee (quota).
+          example: 5
+        movementFee:
+          $ref: '#/components/schemas/AmountByCurrency'
+        monthlyMovementLimit:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100000
+          description: Hard monthly limit; a movement beyond it is rejected. SAVINGS only.
+          example: 10
+        monthlyMaintenanceFee:
+          $ref: '#/components/schemas/AmountByCurrency'
+        minimumDailyAverageBalance:
+          $ref: '#/components/schemas/AmountByCurrency'
+        operationDayOfMonth:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 31
+          description: Day that accepts the monthly movement; 31 means the last day of each month. FIXED_TERM only.
+          example: 15
+    AmountByCurrency:
+      title: AmountByCurrency
+      type: object
+      additionalProperties: false
+      description: One amount for every currency the bank operates.
+      required: [PEN, USD]
+      properties:
+        PEN:
+          $ref: '#/components/schemas/Amount'
+        USD:
+          $ref: '#/components/schemas/Amount'
+    Amount:
+      title: Amount
+      type: number
+      minimum: 0
+      maximum: 999999999999.99
+      description: Zero or positive amount with at most two decimals.
+      example: 2.50
+    ProductResponse:
+      title: ProductResponse
+      type: object
+      required: [code, name, family, eligibility, terms, status, createdAt, updatedAt]
+      properties:
+        code:
+          type: string
+          example: SAVINGS
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Savings account
+        family:
+          $ref: '#/components/schemas/ProductFamily'
+        eligibility:
+          $ref: '#/components/schemas/ProductEligibility'
+        terms:
+          $ref: '#/components/schemas/ProductTermsBody'
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation time in UTC.
+          example: '2026-11-20T15:00:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last modification time in UTC.
+          example: '2026-11-20T15:00:00Z'
+    ProductPageResponse:
+      title: ProductPageResponse
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 10000
+          example: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          example: 20
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Count matching the filters, possibly observed at a different instant than items.
+          example: 5
+        totalPages:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Ceiling of totalElements divided by size; zero when there are no matches.
+          example: 1
+    ErrorResponse:
+      title: ErrorResponse
+      type: object
+      required: [code, message, timestamp, path]
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable error identifier.
+          example: PRODUCT_VERSION_CONFLICT
+        message:
+          type: string
+          description: Human-readable explanation of the error.
+          example: The product changed. Read it again before retrying.
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-11-20T15:00:00Z'
+        path:
+          type: string
+          example: /api/v1/products/SAVINGS
+        traceId:
+          type: string
+          description: >-
+            Correlation identifier of the request: the X-Correlation-ID header received, or
+            the one generated when it was absent. It is also returned in that header and
+            written in the logs of every service the request reached.
+    ProductFamily:
+      title: ProductFamily
+      type: string
+      enum: [SAVINGS, CHECKING, FIXED_TERM]
+      description: Account family of the product, immutable. It decides which terms apply.
+    ProductStatus:
+      title: ProductStatus
+      type: string
+      enum: [ACTIVE, RETIRED]
+      description: New products are ACTIVE. Logical deletion changes status to RETIRED.
+    CustomerType:
+      title: CustomerType
+      type: string
+      enum: [PERSONAL, BUSINESS]
+    CustomerProfile:
+      title: CustomerProfile
+      type: string
+      enum: [STANDARD, VIP, SME]
+      description: |
+        Profile the customer must have; omitted when any profile is accepted.
+        Every accepted customer type must support it: PERSONAL supports STANDARD and VIP,
+        BUSINESS supports STANDARD and SME. Other combinations are rejected with 422.

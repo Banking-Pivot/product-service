@@ -1,0 +1,1704 @@
+{
+  "info": {
+    "name": "product-service - reglas de negocio del catálogo de productos",
+    "description": "Reglas de negocio de product-service, una carpeta por regla: catálogo inicial, términos según la familia, elegibilidad, código único y validación, actualización con If-Match y retiro lógico. Cada corrida crea productos con códigos nuevos (PM_...) y los retira al terminar, así que se puede repetir sobre la misma base. Va por el API Gateway (perfil dev, puerto 8080), que necesita discovery-server y product-service arriba; ajusta baseUrl si corre en otra dirección. Corre la colección completa y en orden: cada carpeta usa los productos que crean las anteriores.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Catálogo inicial del banco",
+      "description": "Al arrancar, product-service agrega los cinco productos del banco que falten (ahorro, ahorro VIP, cuenta corriente, cuenta corriente PYME y plazo fijo) y no vuelve a tocar los que ya existen. Aquí se comprueba que están y que cada uno trae los términos que su familia exige. Los importes no se comparan porque el banco puede editarlos.",
+      "item": [
+        {
+          "name": "01 Producto inicial SAVINGS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK con ETag', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9]+\"$/);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Familia SAVINGS', () => pm.expect(body.family).to.eql('SAVINGS'));",
+                  "pm.test('Ahorro: para clientes PERSONAL, con límite mensual y sin comisión de mantenimiento', () => {",
+                  "  pm.expect(body.eligibility.customerTypes).to.include('PERSONAL');",
+                  "  pm.expect(body.terms.monthlyMovementLimit).to.be.a('number');",
+                  "  pm.expect(body.terms).to.not.have.property('monthlyMaintenanceFee');",
+                  "  pm.expect(body.terms).to.not.have.property('operationDayOfMonth');",
+                  "});",
+                  "pm.test('Importes en soles y dólares', () => {",
+                  "  pm.expect(body.terms.movementFee).to.have.all.keys('PEN', 'USD');",
+                  "  pm.expect(body.terms.openingMinimum).to.have.all.keys('PEN', 'USD');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/SAVINGS"
+          }
+        },
+        {
+          "name": "02 Producto inicial VIP_SAVINGS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK con ETag', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9]+\"$/);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Familia SAVINGS', () => pm.expect(body.family).to.eql('SAVINGS'));",
+                  "pm.test('Ahorro VIP: perfil VIP, tarjeta de crédito y saldo promedio diario mínimo', () => {",
+                  "  pm.expect(body.eligibility.requiredProfile).to.eql('VIP');",
+                  "  pm.expect(body.eligibility.requiresCreditCard).to.eql(true);",
+                  "  pm.expect(body.terms.minimumDailyAverageBalance).to.have.all.keys('PEN', 'USD');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/VIP_SAVINGS"
+          }
+        },
+        {
+          "name": "03 Producto inicial CHECKING",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK con ETag', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9]+\"$/);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Familia CHECKING', () => pm.expect(body.family).to.eql('CHECKING'));",
+                  "pm.test('Cuenta corriente: PERSONAL y BUSINESS, con mantenimiento y sin límite mensual', () => {",
+                  "  pm.expect(body.eligibility.customerTypes).to.have.members(['PERSONAL', 'BUSINESS']);",
+                  "  pm.expect(body.terms.monthlyMaintenanceFee).to.have.all.keys('PEN', 'USD');",
+                  "  pm.expect(body.terms).to.not.have.property('monthlyMovementLimit');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/CHECKING"
+          }
+        },
+        {
+          "name": "04 Producto inicial SME_CHECKING",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK con ETag', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9]+\"$/);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Familia CHECKING', () => pm.expect(body.family).to.eql('CHECKING'));",
+                  "pm.test('Cuenta corriente PYME: BUSINESS con perfil SME y tarjeta de crédito', () => {",
+                  "  pm.expect(body.eligibility.customerTypes).to.eql(['BUSINESS']);",
+                  "  pm.expect(body.eligibility.requiredProfile).to.eql('SME');",
+                  "  pm.expect(body.eligibility.requiresCreditCard).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/SME_CHECKING"
+          }
+        },
+        {
+          "name": "05 Producto inicial FIXED_TERM",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK con ETag', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.match(/^\"[0-9]+\"$/);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Familia FIXED_TERM', () => pm.expect(body.family).to.eql('FIXED_TERM'));",
+                  "pm.test('Plazo fijo: con día de operación y sin límite ni mantenimiento', () => {",
+                  "  pm.expect(body.terms.operationDayOfMonth).to.be.within(1, 31);",
+                  "  pm.expect(body.terms).to.not.have.property('monthlyMovementLimit');",
+                  "  pm.expect(body.terms).to.not.have.property('monthlyMaintenanceFee');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/FIXED_TERM"
+          }
+        },
+        {
+          "name": "06 Listar los productos de la familia SAVINGS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const page = pm.response.json();",
+                  "pm.test('Solo productos SAVINGS, ordenados por código', () => {",
+                  "  const codes = page.items.map(item => item.code);",
+                  "  pm.expect(page.items.every(item => item.family === 'SAVINGS')).to.eql(true);",
+                  "  pm.expect(codes).to.include.members(['SAVINGS', 'VIP_SAVINGS']);",
+                  "  pm.expect(codes).to.eql([...codes].sort());",
+                  "});",
+                  "pm.test('La página informa los totales', () => {",
+                  "  pm.expect(page.page).to.eql(0);",
+                  "  pm.expect(page.size).to.eql(100);",
+                  "  pm.expect(page.totalElements).to.be.at.least(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?family=SAVINGS&size=100"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Términos según la familia del producto",
+      "description": "Cada familia decide qué términos opcionales lleva un producto. SAVINGS exige límite mensual de movimientos, admite saldo promedio diario mínimo y no cobra mantenimiento. CHECKING no tiene límite y puede cobrar mantenimiento. FIXED_TERM exige día de operación y nada más. Lo que no corresponde a la familia se rechaza con 422 y se omite en las respuestas.",
+      "item": [
+        {
+          "name": "07 Crear un producto de ahorro",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Códigos nuevos en cada corrida: el código de un producto no se puede repetir.",
+                  "const run = String(Math.floor(100000 + Math.random() * 900000));",
+                  "pm.collectionVariables.set('savingsCode', 'PM_SAVINGS_' + run);",
+                  "pm.collectionVariables.set('checkingCode', 'PM_CHECKING_' + run);",
+                  "pm.collectionVariables.set('fixedTermCode', 'PM_FIXED_TERM_' + run);",
+                  "pm.collectionVariables.set('vipCode', 'PM_VIP_' + run);",
+                  "pm.collectionVariables.set('rejectedCode', 'PM_REJECTED_' + run);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Location y ETag \"0\" del producto nuevo', () => {",
+                  "  pm.expect(pm.response.headers.get('Location')).to.eql('/api/v1/products/' + pm.collectionVariables.get('savingsCode'));",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"0\"');",
+                  "});",
+                  "pm.test('Nace ACTIVE con su código', () => {",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.code).to.eql(pm.collectionVariables.get('savingsCode'));",
+                  "});",
+                  "pm.test('Límite mensual presente; mantenimiento y día de operación omitidos', () => {",
+                  "  pm.expect(body.terms.monthlyMovementLimit).to.eql(10);",
+                  "  pm.expect(body.terms).to.not.have.property('monthlyMaintenanceFee');",
+                  "  pm.expect(body.terms).to.not.have.property('operationDayOfMonth');",
+                  "});",
+                  "pm.test('Nombre sin espacios sobrantes', () => pm.expect(body.name).to.eql('Ahorro digital'));",
+                  "pm.collectionVariables.set('etag', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{savingsCode}}\",\n  \"name\": \"  Ahorro digital  \",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "08 Crear un producto de cuenta corriente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Location y ETag \"0\" del producto nuevo', () => {",
+                  "  pm.expect(pm.response.headers.get('Location')).to.eql('/api/v1/products/' + pm.collectionVariables.get('checkingCode'));",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"0\"');",
+                  "});",
+                  "pm.test('Nace ACTIVE con su código', () => {",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.code).to.eql(pm.collectionVariables.get('checkingCode'));",
+                  "});",
+                  "pm.test('Mantenimiento presente; límite mensual omitido', () => {",
+                  "  pm.expect(body.terms.monthlyMaintenanceFee).to.eql({ PEN: 12.0, USD: 4.0 });",
+                  "  pm.expect(body.terms).to.not.have.property('monthlyMovementLimit');",
+                  "});",
+                  "pm.collectionVariables.set('checkingEtag', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{checkingCode}}\",\n  \"name\": \"Cuenta corriente digital\",\n  \"family\": \"CHECKING\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\",\n      \"BUSINESS\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 20,\n    \"movementFee\": {\n      \"PEN\": 1.0,\n      \"USD\": 0.3\n    },\n    \"monthlyMaintenanceFee\": {\n      \"PEN\": 12.0,\n      \"USD\": 4.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "09 Crear un producto de plazo fijo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Location y ETag \"0\" del producto nuevo', () => {",
+                  "  pm.expect(pm.response.headers.get('Location')).to.eql('/api/v1/products/' + pm.collectionVariables.get('fixedTermCode'));",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"0\"');",
+                  "});",
+                  "pm.test('Nace ACTIVE con su código', () => {",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.code).to.eql(pm.collectionVariables.get('fixedTermCode'));",
+                  "});",
+                  "pm.test('Día de operación presente; límite y mantenimiento omitidos', () => {",
+                  "  pm.expect(body.terms.operationDayOfMonth).to.eql(15);",
+                  "  pm.expect(body.terms).to.not.have.property('monthlyMovementLimit');",
+                  "  pm.expect(body.terms).to.not.have.property('monthlyMaintenanceFee');",
+                  "});",
+                  "pm.collectionVariables.set('fixedTermEtag', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{fixedTermCode}}\",\n  \"name\": \"Plazo fijo digital\",\n  \"family\": \"FIXED_TERM\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 1000.0,\n      \"USD\": 300.0\n    },\n    \"freeMonthlyMovements\": 1,\n    \"movementFee\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"operationDayOfMonth\": 15\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "10 Ahorro sin límite mensual (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('A SAVINGS product requires a monthly movement limit.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro sin límite\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "11 Ahorro con comisión de mantenimiento (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('A SAVINGS product is exempt from the maintenance fee.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro con mantenimiento\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10,\n    \"monthlyMaintenanceFee\": {\n      \"PEN\": 12.0,\n      \"USD\": 4.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "12 Cuenta corriente con límite mensual (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('A CHECKING product cannot have a monthly movement limit.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Corriente con límite\",\n  \"family\": \"CHECKING\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "13 Plazo fijo sin día de operación (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('A FIXED_TERM product requires an operation day of month.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Plazo fijo sin día\",\n  \"family\": \"FIXED_TERM\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 1000.0,\n      \"USD\": 300.0\n    },\n    \"freeMonthlyMovements\": 1,\n    \"movementFee\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "14 Plazo fijo con saldo promedio mínimo (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('A FIXED_TERM product cannot have a minimum daily average balance.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Plazo fijo con promedio\",\n  \"family\": \"FIXED_TERM\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 1000.0,\n      \"USD\": 300.0\n    },\n    \"freeMonthlyMovements\": 1,\n    \"movementFee\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"operationDayOfMonth\": 15,\n    \"minimumDailyAverageBalance\": {\n      \"PEN\": 1000.0,\n      \"USD\": 300.0\n    }\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Quién puede abrir el producto",
+      "description": "La elegibilidad indica los tipos de cliente aceptados, el perfil exigido (opcional) y si hace falta una tarjeta de crédito. El perfil exigido debe existir para todos los tipos aceptados: VIP solo existe en PERSONAL y SME solo en BUSINESS.",
+      "item": [
+        {
+          "name": "15 Crear un ahorro solo para clientes VIP con tarjeta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Location y ETag \"0\" del producto nuevo', () => {",
+                  "  pm.expect(pm.response.headers.get('Location')).to.eql('/api/v1/products/' + pm.collectionVariables.get('vipCode'));",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"0\"');",
+                  "});",
+                  "pm.test('Nace ACTIVE con su código', () => {",
+                  "  pm.expect(body.status).to.eql('ACTIVE');",
+                  "  pm.expect(body.code).to.eql(pm.collectionVariables.get('vipCode'));",
+                  "});",
+                  "pm.test('Elegibilidad: PERSONAL con perfil VIP y tarjeta de crédito', () => {",
+                  "  pm.expect(body.eligibility).to.eql({",
+                  "    customerTypes: ['PERSONAL'], requiredProfile: 'VIP', requiresCreditCard: true",
+                  "  });",
+                  "});",
+                  "pm.collectionVariables.set('vipEtag', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{vipCode}}\",\n  \"name\": \"Ahorro VIP digital\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiredProfile\": \"VIP\",\n    \"requiresCreditCard\": true\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 1000.0,\n      \"USD\": 300.0\n    },\n    \"freeMonthlyMovements\": 10,\n    \"movementFee\": {\n      \"PEN\": 1.5,\n      \"USD\": 0.5\n    },\n    \"monthlyMovementLimit\": 20,\n    \"minimumDailyAverageBalance\": {\n      \"PEN\": 1000.0,\n      \"USD\": 300.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "16 Perfil SME para clientes PERSONAL (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('Customer profile SME is not available for customer type PERSONAL.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro PYME\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiredProfile\": \"SME\",\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "17 Perfil VIP con clientes BUSINESS aceptados (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('Customer profile VIP is not available for customer type BUSINESS.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Corriente VIP\",\n  \"family\": \"CHECKING\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\",\n      \"BUSINESS\"\n    ],\n    \"requiredProfile\": \"VIP\",\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 20,\n    \"movementFee\": {\n      \"PEN\": 1.0,\n      \"USD\": 0.3\n    },\n    \"monthlyMaintenanceFee\": {\n      \"PEN\": 12.0,\n      \"USD\": 4.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "18 Sin tipos de cliente (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro de nadie\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Código único y validación de la petición",
+      "description": "El código identifica al producto, no se repite ni se edita. Errores del contrato: código con formato inválido, campos desconocidos u obligatorios ausentes e importes negativos o sin una moneda dan 400 INVALID_REQUEST; un importe con más de dos decimales da 422; un cuerpo que no es JSON da 415; un código que no existe da 404.",
+      "item": [
+        {
+          "name": "19 Código que ya existe (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 PRODUCT_CODE_ALREADY_EXISTS', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_CODE_ALREADY_EXISTS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{savingsCode}}\",\n  \"name\": \"Otro ahorro\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "20 Código en minúsculas (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"ahorro_digital\",\n  \"name\": \"Ahorro digital\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "21 Campo desconocido (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro digital\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  },\n  \"status\": \"RETIRED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "22 Faltan los términos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro digital\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "23 Familia inexistente (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Crédito digital\",\n  \"family\": \"CREDIT\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "24 Comisión negativa (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro digital\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": -1,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "25 Comisión sin importe en dólares (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro digital\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "26 Comisión con tres decimales (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('Movement fee in PEN can have at most two decimals.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{rejectedCode}}\",\n  \"name\": \"Ahorro digital\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.505,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "27 Cuerpo que no es JSON (415)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('415 UNSUPPORTED_MEDIA_TYPE', () => {",
+                  "  pm.response.to.have.status(415);",
+                  "  pm.expect(pm.response.json().code).to.eql('UNSUPPORTED_MEDIA_TYPE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "code={{rejectedCode}}"
+            }
+          }
+        },
+        {
+          "name": "28 Producto que no existe (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 PRODUCT_NOT_FOUND', () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_NOT_FOUND');",
+                  "});",
+                  "pm.test('Ninguna petición rechazada creó el producto', () => {",
+                  "  pm.expect(pm.response.json().path).to.eql('/api/v1/products/' + pm.collectionVariables.get('rejectedCode'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/{{rejectedCode}}"
+          }
+        },
+        {
+          "name": "29 Código mal formado en la ruta (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/ahorro-digital"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Actualización con If-Match",
+      "description": "PUT reemplaza nombre, elegibilidad y términos; código y familia no se cambian. Exige el ETag vigente en If-Match: sin cabecera 428, con un formato distinto de \"n\" 400, con una versión vieja 412. Los términos nuevos deben seguir la regla de la familia. La lectura por código pasa por la caché en Redis, que se limpia con cada cambio: la consulta posterior a un PUT siempre devuelve la versión nueva.",
+      "item": [
+        {
+          "name": "30 Consultar el producto (queda en caché)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK con el ETag vigente', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql(pm.collectionVariables.get('etag'));",
+                  "});",
+                  "pm.test('Términos con los que se creó', () => {",
+                  "  const terms = pm.response.json().terms;",
+                  "  pm.expect(terms.freeMonthlyMovements).to.eql(5);",
+                  "  pm.expect(terms.movementFee).to.eql({ PEN: 2.5, USD: 0.75 });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}"
+          }
+        },
+        {
+          "name": "31 Sin If-Match (428)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('428 IF_MATCH_REQUIRED', () => {",
+                  "  pm.response.to.have.status(428);",
+                  "  pm.expect(pm.response.json().code).to.eql('IF_MATCH_REQUIRED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahorro digital plus\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiredProfile\": \"VIP\",\n    \"requiresCreditCard\": true\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 100.0,\n      \"USD\": 30.0\n    },\n    \"freeMonthlyMovements\": 8,\n    \"movementFee\": {\n      \"PEN\": 2.0,\n      \"USD\": 0.6\n    },\n    \"monthlyMovementLimit\": 15,\n    \"minimumDailyAverageBalance\": {\n      \"PEN\": 500.0,\n      \"USD\": 150.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "32 If-Match débil W/\"0\" (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_IF_MATCH', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_IF_MATCH');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "W/\"0\""
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahorro digital plus\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiredProfile\": \"VIP\",\n    \"requiresCreditCard\": true\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 100.0,\n      \"USD\": 30.0\n    },\n    \"freeMonthlyMovements\": 8,\n    \"movementFee\": {\n      \"PEN\": 2.0,\n      \"USD\": 0.6\n    },\n    \"monthlyMovementLimit\": 15,\n    \"minimumDailyAverageBalance\": {\n      \"PEN\": 500.0,\n      \"USD\": 150.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "33 Términos de cuenta corriente para un ahorro (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 PRODUCT_RULE_VIOLATION', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RULE_VIOLATION');",
+                  "});",
+                  "pm.test('El mensaje nombra la regla incumplida', () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('A SAVINGS product requires a monthly movement limit.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahorro digital\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 20,\n    \"movementFee\": {\n      \"PEN\": 1.0,\n      \"USD\": 0.3\n    },\n    \"monthlyMaintenanceFee\": {\n      \"PEN\": 12.0,\n      \"USD\": 4.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "34 Intentar cambiar la familia (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 INVALID_REQUEST', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahorro digital plus\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiredProfile\": \"VIP\",\n    \"requiresCreditCard\": true\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 100.0,\n      \"USD\": 30.0\n    },\n    \"freeMonthlyMovements\": 8,\n    \"movementFee\": {\n      \"PEN\": 2.0,\n      \"USD\": 0.6\n    },\n    \"monthlyMovementLimit\": 15,\n    \"minimumDailyAverageBalance\": {\n      \"PEN\": 500.0,\n      \"USD\": 150.0\n    }\n  },\n  \"family\": \"CHECKING\"\n}"
+            }
+          }
+        },
+        {
+          "name": "35 Cambiar nombre, elegibilidad y términos con el ETag vigente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK con ETag \"1\"', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"1\"');",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Nombre, elegibilidad y términos nuevos', () => {",
+                  "  pm.expect(body.name).to.eql('Ahorro digital plus');",
+                  "  pm.expect(body.eligibility.requiredProfile).to.eql('VIP');",
+                  "  pm.expect(body.eligibility.requiresCreditCard).to.eql(true);",
+                  "  pm.expect(body.terms.monthlyMovementLimit).to.eql(15);",
+                  "  pm.expect(body.terms.minimumDailyAverageBalance).to.eql({ PEN: 500.0, USD: 150.0 });",
+                  "});",
+                  "pm.test('Código y familia intactos', () => {",
+                  "  pm.expect(body.code).to.eql(pm.collectionVariables.get('savingsCode'));",
+                  "  pm.expect(body.family).to.eql('SAVINGS');",
+                  "});",
+                  "pm.collectionVariables.set('staleEtag', pm.collectionVariables.get('etag'));",
+                  "pm.collectionVariables.set('etag', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahorro digital plus\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiredProfile\": \"VIP\",\n    \"requiresCreditCard\": true\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 100.0,\n      \"USD\": 30.0\n    },\n    \"freeMonthlyMovements\": 8,\n    \"movementFee\": {\n      \"PEN\": 2.0,\n      \"USD\": 0.6\n    },\n    \"monthlyMovementLimit\": 15,\n    \"minimumDailyAverageBalance\": {\n      \"PEN\": 500.0,\n      \"USD\": 150.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "36 La consulta ya no devuelve la copia en caché",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK con el ETag nuevo', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"1\"');",
+                  "});",
+                  "pm.test('Términos actualizados', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.name).to.eql('Ahorro digital plus');",
+                  "  pm.expect(body.terms.freeMonthlyMovements).to.eql(8);",
+                  "  pm.expect(body.terms.movementFee).to.eql({ PEN: 2.0, USD: 0.6 });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}"
+          }
+        },
+        {
+          "name": "37 Repetir los mismos valores (200, mismo ETag)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK sin cambiar de versión', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"1\"');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahorro digital plus\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiredProfile\": \"VIP\",\n    \"requiresCreditCard\": true\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 100.0,\n      \"USD\": 30.0\n    },\n    \"freeMonthlyMovements\": 8,\n    \"movementFee\": {\n      \"PEN\": 2.0,\n      \"USD\": 0.6\n    },\n    \"monthlyMovementLimit\": 15,\n    \"minimumDailyAverageBalance\": {\n      \"PEN\": 500.0,\n      \"USD\": 150.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "38 Actualizar con el ETag anterior (412)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('412 PRODUCT_VERSION_CONFLICT', () => {",
+                  "  pm.response.to.have.status(412);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_VERSION_CONFLICT');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{staleEtag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Escritura tardía\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "39 El 412 no sobrescribió nada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sigue la versión 1 con el nombre anterior', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"1\"');",
+                  "  pm.expect(pm.response.json().name).to.eql('Ahorro digital plus');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Retiro lógico",
+      "description": "DELETE no borra: pasa el producto a RETIRED y conserva el registro y su código, porque las cuentas abiertas con él lo siguen consultando. Exige If-Match; repetirlo con el ETag vigente devuelve 204 sin cambios y con el ETag anterior 412. Un producto retirado no se edita y su código no se reutiliza. Al final se retiran los demás productos creados por la corrida.",
+      "item": [
+        {
+          "name": "40 Retirar sin If-Match (428)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('428 IF_MATCH_REQUIRED', () => {",
+                  "  pm.response.to.have.status(428);",
+                  "  pm.expect(pm.response.json().code).to.eql('IF_MATCH_REQUIRED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}"
+          }
+        },
+        {
+          "name": "41 Retirar con el ETag vigente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('staleEtag', pm.collectionVariables.get('etag'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}"
+          }
+        },
+        {
+          "name": "42 Consultar el producto retirado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK, RETIRED y ETag \"2\"', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('RETIRED');",
+                  "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"2\"');",
+                  "});",
+                  "pm.test('Conserva sus términos', () => {",
+                  "  pm.expect(pm.response.json().terms.monthlyMovementLimit).to.eql(15);",
+                  "});",
+                  "pm.collectionVariables.set('etag', pm.response.headers.get('ETag'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}"
+          }
+        },
+        {
+          "name": "43 Repetir con el ETag vigente (204 sin cambios)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}"
+          }
+        },
+        {
+          "name": "44 Repetir con el ETag anterior (412)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('412 PRODUCT_VERSION_CONFLICT', () => {",
+                  "  pm.response.to.have.status(412);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_VERSION_CONFLICT');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{staleEtag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}"
+          }
+        },
+        {
+          "name": "45 Editar un producto retirado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 PRODUCT_RETIRED', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_RETIRED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "If-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{savingsCode}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahorro digital plus\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiredProfile\": \"VIP\",\n    \"requiresCreditCard\": true\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 100.0,\n      \"USD\": 30.0\n    },\n    \"freeMonthlyMovements\": 8,\n    \"movementFee\": {\n      \"PEN\": 2.0,\n      \"USD\": 0.6\n    },\n    \"monthlyMovementLimit\": 15,\n    \"minimumDailyAverageBalance\": {\n      \"PEN\": 500.0,\n      \"USD\": 150.0\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "46 Crear un producto con el código de uno retirado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 PRODUCT_CODE_ALREADY_EXISTS', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().code).to.eql('PRODUCT_CODE_ALREADY_EXISTS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{savingsCode}}\",\n  \"name\": \"Ahorro digital\",\n  \"family\": \"SAVINGS\",\n  \"eligibility\": {\n    \"customerTypes\": [\n      \"PERSONAL\"\n    ],\n    \"requiresCreditCard\": false\n  },\n  \"terms\": {\n    \"openingMinimum\": {\n      \"PEN\": 0,\n      \"USD\": 0\n    },\n    \"freeMonthlyMovements\": 5,\n    \"movementFee\": {\n      \"PEN\": 2.5,\n      \"USD\": 0.75\n    },\n    \"monthlyMovementLimit\": 10\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "47 Listar los productos SAVINGS retirados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Solo retirados, entre ellos el de esta corrida', () => {",
+                  "  const items = pm.response.json().items;",
+                  "  pm.expect(items.every(item => item.status === 'RETIRED')).to.eql(true);",
+                  "  pm.expect(items.map(item => item.code)).to.include(pm.collectionVariables.get('savingsCode'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?family=SAVINGS&status=RETIRED&size=100"
+          }
+        },
+        {
+          "name": "48 Retirar la cuenta corriente de la corrida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{checkingEtag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{checkingCode}}"
+          }
+        },
+        {
+          "name": "49 Retirar el plazo fijo de la corrida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{fixedTermEtag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{fixedTermCode}}"
+          }
+        },
+        {
+          "name": "50 Retirar el ahorro VIP de la corrida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "If-Match",
+                "value": "{{vipEtag}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/products/{{vipCode}}"
+          }
+        },
+        {
+          "name": "51 Los productos iniciales siguen activos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Ningún producto de la corrida queda activo', () => {",
+                  "  const codes = pm.response.json().items.map(item => item.code);",
+                  "  ['savingsCode', 'checkingCode', 'fixedTermCode', 'vipCode'].forEach(variable =>",
+                  "    pm.expect(codes).to.not.include(pm.collectionVariables.get(variable)));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?status=ACTIVE&size=100"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "savingsCode",
+      "value": ""
+    },
+    {
+      "key": "checkingCode",
+      "value": ""
+    },
+    {
+      "key": "fixedTermCode",
+      "value": ""
+    },
+    {
+      "key": "vipCode",
+      "value": ""
+    },
+    {
+      "key": "rejectedCode",
+      "value": ""
+    },
+    {
+      "key": "etag",
+      "value": ""
+    },
+    {
+      "key": "staleEtag",
+      "value": ""
+    },
+    {
+      "key": "checkingEtag",
+      "value": ""
+    },
+    {
+      "key": "fixedTermEtag",
+      "value": ""
+    },
+    {
+      "key": "vipEtag",
+      "value": ""
+    }
+  ]
+}
