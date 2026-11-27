@@ -1,8 +1,8 @@
 package com.banking.productservice.infrastructure.adapter.out.mongodb;
 
-import com.banking.productservice.domain.model.CustomerProfile;
-import com.banking.productservice.domain.model.ProductFamily;
-import com.banking.productservice.domain.model.ProductStatus;
+import com.banking.productservice.domain.model.enums.CustomerProfile;
+import com.banking.productservice.domain.model.enums.ProductFamily;
+import com.banking.productservice.domain.model.enums.ProductStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

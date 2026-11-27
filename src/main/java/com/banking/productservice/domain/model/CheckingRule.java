@@ -1,10 +1,12 @@
 package com.banking.productservice.domain.model;
 
+import com.banking.productservice.domain.model.vo.ProductTerms;
+
 /**
  * Checking: no monthly movement limit. It may charge a maintenance fee (omitted when the product is
  * exempt, as SME checking is) and accepts movements any day.
  */
-final class CheckingRule implements FamilyRule {
+public final class CheckingRule implements FamilyRule {
 
   @Override
   public void check(ProductTerms terms) {

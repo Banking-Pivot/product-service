@@ -1,6 +1,8 @@
-package com.banking.productservice.domain.model;
+package com.banking.productservice.domain.model.vo;
 
 import com.banking.productservice.domain.exception.InvalidProductException;
+import com.banking.productservice.domain.model.enums.CustomerProfile;
+import com.banking.productservice.domain.model.enums.CustomerType;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Objects;

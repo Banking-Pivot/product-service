@@ -1,7 +1,7 @@
 package com.banking.productservice.application.command;
 
-import com.banking.productservice.domain.model.Eligibility;
-import com.banking.productservice.domain.model.ProductTerms;
+import com.banking.productservice.domain.model.vo.Eligibility;
+import com.banking.productservice.domain.model.vo.ProductTerms;
 import java.util.Objects;
 
 /** Full replacement of the editable fields, conditioned on the revision the client last read. */

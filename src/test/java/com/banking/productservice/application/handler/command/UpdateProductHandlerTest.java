@@ -20,7 +20,7 @@ import com.banking.productservice.application.port.out.ProductCachePort;
 import com.banking.productservice.application.port.out.ProductWritePort;
 import com.banking.productservice.domain.exception.InvalidProductException;
 import com.banking.productservice.domain.model.Product;
-import com.banking.productservice.domain.model.ProductTerms;
+import com.banking.productservice.domain.model.vo.ProductTerms;
 import com.banking.productservice.support.Products;
 import java.time.Clock;
 import java.time.Instant;

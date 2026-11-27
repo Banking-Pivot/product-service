@@ -1,6 +1,9 @@
-package com.banking.productservice.domain.model;
+package com.banking.productservice.domain.model.vo;
 
 import com.banking.productservice.domain.exception.InvalidProductException;
+import com.banking.productservice.domain.model.Amounts;
+import com.banking.productservice.domain.model.FamilyRule;
+import com.banking.productservice.domain.model.enums.CurrencyCode;
 import java.math.BigDecimal;
 import java.util.Map;
 

@@ -1,11 +1,11 @@
 package com.banking.productservice.support;
 
-import com.banking.productservice.domain.model.CurrencyCode;
-import com.banking.productservice.domain.model.CustomerType;
-import com.banking.productservice.domain.model.Eligibility;
 import com.banking.productservice.domain.model.Product;
-import com.banking.productservice.domain.model.ProductFamily;
-import com.banking.productservice.domain.model.ProductTerms;
+import com.banking.productservice.domain.model.enums.CurrencyCode;
+import com.banking.productservice.domain.model.enums.CustomerType;
+import com.banking.productservice.domain.model.enums.ProductFamily;
+import com.banking.productservice.domain.model.vo.Eligibility;
+import com.banking.productservice.domain.model.vo.ProductTerms;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.EnumMap;

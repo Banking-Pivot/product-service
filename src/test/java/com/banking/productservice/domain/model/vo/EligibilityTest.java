@@ -1,9 +1,11 @@
-package com.banking.productservice.domain.model;
+package com.banking.productservice.domain.model.vo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.banking.productservice.domain.exception.InvalidProductException;
+import com.banking.productservice.domain.model.enums.CustomerProfile;
+import com.banking.productservice.domain.model.enums.CustomerType;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;

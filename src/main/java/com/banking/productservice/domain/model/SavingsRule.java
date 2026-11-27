@@ -1,10 +1,12 @@
 package com.banking.productservice.domain.model;
 
+import com.banking.productservice.domain.model.vo.ProductTerms;
+
 /**
  * Savings: free of maintenance fee, with a hard monthly movement limit. It may require an average
  * daily balance (VIP savings) and accepts movements any day.
  */
-final class SavingsRule implements FamilyRule {
+public final class SavingsRule implements FamilyRule {
 
   @Override
   public void check(ProductTerms terms) {

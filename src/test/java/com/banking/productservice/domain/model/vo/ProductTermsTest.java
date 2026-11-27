@@ -1,10 +1,11 @@
-package com.banking.productservice.domain.model;
+package com.banking.productservice.domain.model.vo;
 
 import static com.banking.productservice.support.Products.amounts;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.banking.productservice.domain.exception.InvalidProductException;
+import com.banking.productservice.domain.model.enums.CurrencyCode;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

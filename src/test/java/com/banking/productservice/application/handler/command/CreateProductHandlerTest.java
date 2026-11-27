@@ -11,8 +11,8 @@ import com.banking.productservice.application.exception.DuplicateProductCodeExce
 import com.banking.productservice.application.port.out.ProductWritePort;
 import com.banking.productservice.domain.exception.InvalidProductException;
 import com.banking.productservice.domain.model.Product;
-import com.banking.productservice.domain.model.ProductFamily;
-import com.banking.productservice.domain.model.ProductStatus;
+import com.banking.productservice.domain.model.enums.ProductFamily;
+import com.banking.productservice.domain.model.enums.ProductStatus;
 import com.banking.productservice.support.Products;
 import java.time.Clock;
 import java.time.Instant;

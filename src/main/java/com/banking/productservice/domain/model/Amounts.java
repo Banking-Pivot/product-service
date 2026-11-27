@@ -1,6 +1,7 @@
 package com.banking.productservice.domain.model;
 
 import com.banking.productservice.domain.exception.InvalidProductException;
+import com.banking.productservice.domain.model.enums.CurrencyCode;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.EnumMap;

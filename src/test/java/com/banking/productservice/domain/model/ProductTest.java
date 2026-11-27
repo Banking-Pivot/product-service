@@ -5,6 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.banking.productservice.domain.exception.InvalidProductException;
+import com.banking.productservice.domain.model.enums.CustomerProfile;
+import com.banking.productservice.domain.model.enums.CustomerType;
+import com.banking.productservice.domain.model.enums.ProductFamily;
+import com.banking.productservice.domain.model.enums.ProductStatus;
+import com.banking.productservice.domain.model.vo.Eligibility;
+import com.banking.productservice.domain.model.vo.ProductTerms;
 import com.banking.productservice.support.Products;
 import java.time.Instant;
 import java.util.Set;

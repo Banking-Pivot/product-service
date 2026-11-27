@@ -1,4 +1,4 @@
-package com.banking.productservice.domain.model;
+package com.banking.productservice.domain.model.enums;
 
 /**
  * Lifecycle of a catalog product. RETIRED is the logical deletion: the record and its code are

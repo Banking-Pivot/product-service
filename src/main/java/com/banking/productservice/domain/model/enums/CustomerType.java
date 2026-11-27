@@ -1,4 +1,4 @@
-package com.banking.productservice.domain.model;
+package com.banking.productservice.domain.model.enums;
 
 /** Customer classification, with the profiles each type can have. */
 public enum CustomerType {

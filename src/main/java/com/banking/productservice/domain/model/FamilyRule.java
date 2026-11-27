@@ -1,6 +1,8 @@
 package com.banking.productservice.domain.model;
 
 import com.banking.productservice.domain.exception.InvalidProductException;
+import com.banking.productservice.domain.model.enums.ProductFamily;
+import com.banking.productservice.domain.model.vo.ProductTerms;
 
 /**
  * Strategy with the shape the terms of one product family must have: which optional terms it

@@ -1,4 +1,4 @@
-package com.banking.productservice.domain.model;
+package com.banking.productservice.domain.model.enums;
 
 /**
  * Profile of a customer within its type. A product can require one: VIP exists only for personal

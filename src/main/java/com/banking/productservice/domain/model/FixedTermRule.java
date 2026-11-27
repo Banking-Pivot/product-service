@@ -1,10 +1,12 @@
 package com.banking.productservice.domain.model;
 
+import com.banking.productservice.domain.model.vo.ProductTerms;
+
 /**
  * Fixed term: free of maintenance fee, one movement per month on its operation day. That single
  * movement is part of the family, not a term, so no limit is stored.
  */
-final class FixedTermRule implements FamilyRule {
+public final class FixedTermRule implements FamilyRule {
 
   @Override
   public void check(ProductTerms terms) {

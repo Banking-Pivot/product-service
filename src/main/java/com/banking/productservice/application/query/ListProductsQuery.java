@@ -1,7 +1,7 @@
 package com.banking.productservice.application.query;
 
-import com.banking.productservice.domain.model.ProductFamily;
-import com.banking.productservice.domain.model.ProductStatus;
+import com.banking.productservice.domain.model.enums.ProductFamily;
+import com.banking.productservice.domain.model.enums.ProductStatus;
 
 /**
  * Zero-based page request with optional filters; {@code null} means "any". Bounds mirror the

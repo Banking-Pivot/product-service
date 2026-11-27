@@ -1,6 +1,10 @@
 package com.banking.productservice.domain.model;
 
 import com.banking.productservice.domain.exception.InvalidProductException;
+import com.banking.productservice.domain.model.enums.ProductFamily;
+import com.banking.productservice.domain.model.enums.ProductStatus;
+import com.banking.productservice.domain.model.vo.Eligibility;
+import com.banking.productservice.domain.model.vo.ProductTerms;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.regex.Pattern;

@@ -5,9 +5,9 @@ import static org.springframework.data.mongodb.core.query.Query.query;
 
 import com.banking.productservice.application.exception.DuplicateProductCodeException;
 import com.banking.productservice.application.port.out.ProductWritePort;
-import com.banking.productservice.domain.model.Eligibility;
 import com.banking.productservice.domain.model.Product;
-import com.banking.productservice.domain.model.ProductTerms;
+import com.banking.productservice.domain.model.vo.Eligibility;
+import com.banking.productservice.domain.model.vo.ProductTerms;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;

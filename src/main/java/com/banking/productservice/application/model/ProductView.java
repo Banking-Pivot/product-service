@@ -1,10 +1,10 @@
 package com.banking.productservice.application.model;
 
-import com.banking.productservice.domain.model.Eligibility;
 import com.banking.productservice.domain.model.Product;
-import com.banking.productservice.domain.model.ProductFamily;
-import com.banking.productservice.domain.model.ProductStatus;
-import com.banking.productservice.domain.model.ProductTerms;
+import com.banking.productservice.domain.model.enums.ProductFamily;
+import com.banking.productservice.domain.model.enums.ProductStatus;
+import com.banking.productservice.domain.model.vo.Eligibility;
+import com.banking.productservice.domain.model.vo.ProductTerms;
 import java.time.Instant;
 
 /**
