@@ -29,22 +29,22 @@ public class ProductDocument {
 
   public static final String COLLECTION = "products";
 
-  static final String CODE = "code";
-  static final String NAME = "name";
-  static final String FAMILY = "family";
-  static final String STATUS = "status";
-  static final String CUSTOMER_TYPES = "customerTypes";
-  static final String REQUIRED_PROFILE = "requiredProfile";
-  static final String REQUIRES_CREDIT_CARD = "requiresCreditCard";
-  static final String OPENING_MINIMUM = "openingMinimum";
-  static final String FREE_MONTHLY_MOVEMENTS = "freeMonthlyMovements";
-  static final String MOVEMENT_FEE = "movementFee";
-  static final String MONTHLY_MOVEMENT_LIMIT = "monthlyMovementLimit";
-  static final String MONTHLY_MAINTENANCE_FEE = "monthlyMaintenanceFee";
-  static final String MINIMUM_DAILY_AVERAGE_BALANCE = "minimumDailyAverageBalance";
-  static final String OPERATION_DAY_OF_MONTH = "operationDayOfMonth";
-  static final String UPDATED_AT = "updatedAt";
-  static final String VERSION = "version";
+  static final String FIELD_CODE = "code";
+  static final String FIELD_NAME = "name";
+  static final String FIELD_FAMILY = "family";
+  static final String FIELD_STATUS = "status";
+  static final String FIELD_CUSTOMER_TYPES = "customerTypes";
+  static final String FIELD_REQUIRED_PROFILE = "requiredProfile";
+  static final String FIELD_REQUIRES_CREDIT_CARD = "requiresCreditCard";
+  static final String FIELD_OPENING_MINIMUM = "openingMinimum";
+  static final String FIELD_FREE_MONTHLY_MOVEMENTS = "freeMonthlyMovements";
+  static final String FIELD_MOVEMENT_FEE = "movementFee";
+  static final String FIELD_MONTHLY_MOVEMENT_LIMIT = "monthlyMovementLimit";
+  static final String FIELD_MONTHLY_MAINTENANCE_FEE = "monthlyMaintenanceFee";
+  static final String FIELD_MINIMUM_DAILY_AVERAGE_BALANCE = "minimumDailyAverageBalance";
+  static final String FIELD_OPERATION_DAY_OF_MONTH = "operationDayOfMonth";
+  static final String FIELD_UPDATED_AT = "updatedAt";
+  static final String FIELD_VERSION = "version";
 
   @Id private String code;
   private String name;

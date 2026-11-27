@@ -60,34 +60,34 @@ public class ProductMongoWriteAdapter implements ProductWritePort {
     ProductTerms terms = product.getTerms();
     var changes =
         new Update()
-            .set(ProductDocument.NAME, product.getName())
-            .set(ProductDocument.STATUS, product.getStatus())
-            .set(ProductDocument.CUSTOMER_TYPES, mapper.toStored(eligibility))
-            .set(ProductDocument.REQUIRES_CREDIT_CARD, eligibility.requiresCreditCard())
-            .set(ProductDocument.OPENING_MINIMUM, mapper.toStored(terms.openingMinimum()))
-            .set(ProductDocument.FREE_MONTHLY_MOVEMENTS, terms.freeMonthlyMovements())
-            .set(ProductDocument.MOVEMENT_FEE, mapper.toStored(terms.movementFee()))
-            .set(ProductDocument.UPDATED_AT, product.getUpdatedAt())
-            .inc(ProductDocument.VERSION, 1);
-    setOrUnset(changes, ProductDocument.REQUIRED_PROFILE, eligibility.requiredProfile());
-    setOrUnset(changes, ProductDocument.MONTHLY_MOVEMENT_LIMIT, terms.monthlyMovementLimit());
+            .set(ProductDocument.FIELD_NAME, product.getName())
+            .set(ProductDocument.FIELD_STATUS, product.getStatus())
+            .set(ProductDocument.FIELD_CUSTOMER_TYPES, mapper.toStored(eligibility))
+            .set(ProductDocument.FIELD_REQUIRES_CREDIT_CARD, eligibility.requiresCreditCard())
+            .set(ProductDocument.FIELD_OPENING_MINIMUM, mapper.toStored(terms.openingMinimum()))
+            .set(ProductDocument.FIELD_FREE_MONTHLY_MOVEMENTS, terms.freeMonthlyMovements())
+            .set(ProductDocument.FIELD_MOVEMENT_FEE, mapper.toStored(terms.movementFee()))
+            .set(ProductDocument.FIELD_UPDATED_AT, product.getUpdatedAt())
+            .inc(ProductDocument.FIELD_VERSION, 1);
+    setOrUnset(changes, ProductDocument.FIELD_REQUIRED_PROFILE, eligibility.requiredProfile());
+    setOrUnset(changes, ProductDocument.FIELD_MONTHLY_MOVEMENT_LIMIT, terms.monthlyMovementLimit());
     setOrUnset(
         changes,
-        ProductDocument.MONTHLY_MAINTENANCE_FEE,
+        ProductDocument.FIELD_MONTHLY_MAINTENANCE_FEE,
         mapper.toStored(terms.monthlyMaintenanceFee()));
     setOrUnset(
         changes,
-        ProductDocument.MINIMUM_DAILY_AVERAGE_BALANCE,
+        ProductDocument.FIELD_MINIMUM_DAILY_AVERAGE_BALANCE,
         mapper.toStored(terms.minimumDailyAverageBalance()));
-    setOrUnset(changes, ProductDocument.OPERATION_DAY_OF_MONTH, terms.operationDayOfMonth());
+    setOrUnset(changes, ProductDocument.FIELD_OPERATION_DAY_OF_MONTH, terms.operationDayOfMonth());
 
     // Compare-and-set in a single document operation: the filter carries the
     // client's revision, so a concurrent writer makes this match nothing.
     var filter =
         query(
-            where(ProductDocument.CODE)
+            where(ProductDocument.FIELD_CODE)
                 .is(product.getCode())
-                .and(ProductDocument.VERSION)
+                .and(ProductDocument.FIELD_VERSION)
                 .is(expectedVersion));
 
     return mongoTemplate

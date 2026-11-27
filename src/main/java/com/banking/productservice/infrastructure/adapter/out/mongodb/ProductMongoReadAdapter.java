@@ -45,7 +45,7 @@ public class ProductMongoReadAdapter implements ProductReadPort {
     // The code is the _id, so ascending code uses the default _id index.
     Query pageQuery =
         filter(query)
-            .with(Sort.by(Sort.Direction.ASC, ProductDocument.CODE))
+            .with(Sort.by(Sort.Direction.ASC, ProductDocument.FIELD_CODE))
             .skip(query.offset())
             .limit(query.size());
 
@@ -60,10 +60,10 @@ public class ProductMongoReadAdapter implements ProductReadPort {
   private static Query filter(ListProductsQuery query) {
     Query filter = new Query();
     if (query.family() != null) {
-      filter.addCriteria(Criteria.where(ProductDocument.FAMILY).is(query.family()));
+      filter.addCriteria(Criteria.where(ProductDocument.FIELD_FAMILY).is(query.family()));
     }
     if (query.status() != null) {
-      filter.addCriteria(Criteria.where(ProductDocument.STATUS).is(query.status()));
+      filter.addCriteria(Criteria.where(ProductDocument.FIELD_STATUS).is(query.status()));
     }
     return filter;
   }

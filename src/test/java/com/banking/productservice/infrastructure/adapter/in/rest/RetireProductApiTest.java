@@ -26,7 +26,7 @@ class RetireProductApiTest extends ProductIntegrationTest {
     assertThat(after.get("version", Number.class).longValue()).isEqualTo(1);
     assertThat(after.get("updatedAt", Date.class)).isAfter(before.get("updatedAt", Date.class));
     assertThat(after.get("createdAt", Date.class)).isEqualTo(before.get("createdAt", Date.class));
-    assertThat(after.get("movementFee")).isEqualTo(before.get("movementFee"));
+    assertThat(after).containsEntry("movementFee", before.get("movementFee"));
     assertThat(after.getInteger("monthlyMovementLimit")).isEqualTo(10);
   }
 

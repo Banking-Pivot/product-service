@@ -41,7 +41,7 @@ import org.springframework.web.server.ServerWebInputException;
 @Component
 public class ProductRestMapper {
 
-  private static final Pattern STRONG_NUMERIC_ETAG = Pattern.compile("^\"([0-9]+)\"$");
+  private static final Pattern STRONG_NUMERIC_ETAG = Pattern.compile("^\"(\\d+)\"$");
 
   /** Command that adds the requested product to the catalog. */
   public CreateProductCommand toCommand(CreateProductRequest request) {
@@ -146,13 +146,12 @@ public class ProductRestMapper {
   }
 
   private static Eligibility toEligibility(ProductEligibility body) {
+    var requiredProfile = body.getRequiredProfile();
     return new Eligibility(
         body.getCustomerTypes().stream()
             .map(type -> type == null ? null : CustomerType.valueOf(type.name()))
             .collect(Collectors.toCollection(LinkedHashSet::new)),
-        body.getRequiredProfile() == null
-            ? null
-            : CustomerProfile.valueOf(body.getRequiredProfile().name()),
+        requiredProfile == null ? null : CustomerProfile.valueOf(requiredProfile.name()),
         Boolean.TRUE.equals(body.getRequiresCreditCard()));
   }
 

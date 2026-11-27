@@ -81,10 +81,9 @@ class CreateProductApiTest extends ProductIntegrationTest {
     assertThat(stored.getString("family")).isEqualTo("SAVINGS");
     assertThat(stored.getString("status")).isEqualTo("ACTIVE");
     assertThat(stored.getList("customerTypes", String.class)).containsExactly("PERSONAL");
-    assertThat(stored.get("movementFee", Document.class).get("PEN"))
-        .isEqualTo(new Decimal128(new BigDecimal("2.50")));
-    assertThat(stored.get("movementFee", Document.class).get("USD"))
-        .isEqualTo(new Decimal128(new BigDecimal("0.75")));
+    assertThat(stored.get("movementFee", Document.class))
+        .containsEntry("PEN", new Decimal128(new BigDecimal("2.50")))
+        .containsEntry("USD", new Decimal128(new BigDecimal("0.75")));
     assertThat(stored.getInteger("monthlyMovementLimit")).isEqualTo(10);
     assertThat(stored.get("version", Number.class).longValue()).isZero();
     assertThat(stored.get("createdAt", Date.class)).isAfterOrEqualTo(Date.from(START));
